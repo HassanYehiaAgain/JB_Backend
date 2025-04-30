@@ -17,14 +17,38 @@ app.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Nickname, email, and password are required.' });
   }
   
-  const sql = `INSERT INTO users (nickname, email, password) VALUES (?, ?, ?)`;
-  db.run(sql, [nickname, email, password], function (err) {
+  // Email validation - must include @ and .com
+  if (!email.includes('@') || !email.includes('.com')) {
+    return res.status(400).json({ error: 'Email must include @ and .com' });
+  }
+  
+  // Password validation - minimum 6 characters
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  }
+  
+  // Check if nickname already exists
+  const checkNicknameSQL = `SELECT nickname FROM users WHERE nickname = ?`;
+  db.get(checkNicknameSQL, [nickname], (err, row) => {
+    if (err) {
+      console.error('Database error:', err.message);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    if (row) {
+      return res.status(400).json({ error: 'Nickname already exists' });
+    }
+    
+    // If all validations pass, insert the new user
+    const sql = `INSERT INTO users (nickname, email, password) VALUES (?, ?, ?)`;
+    db.run(sql, [nickname, email, password], function (err) {
       if (err) {
-          console.error('Registration error:', err.message);
-          return res.status(400).json({ error: err.message });
+        console.error('Registration error:', err.message);
+        return res.status(400).json({ error: err.message });
       }
       console.log('User registered:', this.lastID, nickname, email);
       res.json({ id: this.lastID, nickname, email, score: 0 });
+    });
   });
 });
 
